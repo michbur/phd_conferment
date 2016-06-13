@@ -1,0 +1,261 @@
+---
+title: 'Przewidywanie właściwości sekwencji biologicznych w oparciu o analizę n-gramów'
+author: "Michał Burdukiewicz"
+date: "28-06-2016"
+output:
+  ioslides_presentation: 
+    css: shiny_paper.css
+  fig_height: 5.5
+fig_width: 9.5
+widescreen: yes
+bibliography: amyloids.bib
+---
+  
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
+library(DT)
+library(knitr)
+library(ggplot2)
+library(grid)
+library(gridExtra)
+library(dplyr)
+library(biogram)
+library(reshape2)
+library(plotly)
+
+options(DT.options = list(iDisplayLength = 6, searching = TRUE))
+
+size_mod <- -1
+
+enc2df <- function(x)
+  data.frame(Names = names(x), Elements = toupper(sapply(x, paste0, collapse = ", ")))
+
+my_theme <- theme(
+  axis.text = element_text(size=13 + size_mod),
+  axis.title.x = element_text(size=14 + size_mod, vjust = -1),
+  axis.title.y = element_text(size=14 + size_mod, vjust = 1),
+  
+  legend.background = element_rect(fill = "NA"),
+  legend.key = element_rect(fill = "NA", color = "NA", size = 0.5),
+  legend.position = "bottom",
+  #uncomment for publications
+  legend.key.size = unit(0.1, "inches"),
+  legend.margin = unit(-0.25, "lines"),
+  legend.text = element_text(size=13 + size_mod), 
+  legend.title = element_text(size=15 + size_mod),
+  
+  panel.grid.major = element_line(color="grey", linetype = "dashed", size = 0.5),
+  panel.grid.major = element_line(color="lightgrey", 
+                                  linetype = "dashed", size = 0.5),
+  panel.background = element_rect(fill = "transparent", color = "black"),
+  
+  plot.background=element_rect(fill = "transparent",
+                               color = "transparent"),
+  #uncomment for publications
+  plot.margin = unit(rep(0.02, 4), "inches"),
+  plot.title = element_text(size=20 + size_mod),
+  
+  strip.background = element_rect(fill = "NA", color = "NA"),
+  strip.text = element_text(size=13 + size_mod, face = "bold")
+)
+```
+
+
+## Białka amyloidowe
+
+Białka związane z licznymi chorobami (np. choroby Alzheimera, Parkinsona, Creutzfeldta-Jakoba) tworzące szkodliwe agregaty.
+
+Proces ten jest inicjowany w obrębie tzw. hot spots, krótkich (6-15 aminokwasów) podsekwencji, które występują we wszystkich białkach amyloidowych i formują specyficzne struktury $\beta$ typu "zamka błyskawicznego" (zipper-like).
+
+## Hot spots
+
+Zróżnicowanie budowy hot spots uniemożliwa opisanie ich konkretnych wzorcem, a w konsekwencji predykcję potencjalnych miejsc inicjacji agregacji amyloidowej w białku. 
+
+## Peptydy sygnałowe
+
+Peptydy sygnałowe to krótkie (15-30 aminokwasów) N-końcowe sekwencje kierujące białko do sekrecji.
+
+Powszechny model klasycznych peptydów sygnałowych zakłada, że rozpoczynają się one naładowanym dodatnio n-regionem, po którym występuje hydrofobowy h-region i c-region zakończony miejscem cięcia rozpoznawanym przez peptydazę sygnałową. 
+
+## Peptydy sygnałowe
+
+Analizy dużej liczby sekwencji reprezentujących szerokie spektrum zróżnicowanych taksonomicznie gatunków wskazują na dużą zmienność peptydów sygnałowych.
+
+<!-- ## n-grams -->
+
+<!-- ```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE} -->
+<!-- sample_seq <- matrix(sample(c("A", "C", "G", "T"), 18, replace = TRUE), nrow = 3) -->
+<!-- colnames(sample_seq) <- paste0("P", 1L:ncol(sample_seq)) -->
+<!-- rownames(sample_seq) <- paste0("S", 1L:nrow(sample_seq)) -->
+
+<!-- kable(data.frame(sample_seq), caption = "Sample sequences.  S - sequence, P - position.", digits = 0) -->
+<!-- ``` -->
+
+<!-- ## n-grams -->
+
+<!-- ```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE} -->
+<!-- unis <- count_ngrams(sample_seq, 1, c("A", "C", "G", "T")) -->
+<!-- unis <- data.frame(as.matrix(unis)) -->
+<!-- colnames(unis) <- decode_ngrams(colnames(unis)) -->
+<!-- rownames(unis) <- paste0("S", 1L:nrow(sample_seq)) -->
+<!-- kable(unis, caption = "Counts of 1-grams.", digits = 0) -->
+<!-- ``` -->
+
+<!-- ## n-grams -->
+
+<!-- ```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE} -->
+<!-- unis <- count_ngrams(sample_seq, 2, c("A", "C", "G", "T")) -->
+<!-- unis <- data.frame(as.matrix(unis)) -->
+<!-- colnames(unis) <- decode_ngrams(colnames(unis)) -->
+<!-- rownames(unis) <- paste0("S", 1L:nrow(sample_seq)) -->
+<!-- kable(unis, caption = "Counts of 2-grams.", digits = 0) -->
+<!-- ``` -->
+
+<!-- ## n-grams -->
+
+<!-- ```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE} -->
+<!-- unis <- count_ngrams(sample_seq, 2, d = 1, c("A", "C", "G", "T")) -->
+<!-- unis <- data.frame(as.matrix(unis)) -->
+<!-- colnames(unis) <- sub("_", "|", decode_ngrams(colnames(unis))) -->
+<!-- rownames(unis) <- paste0("S", 1L:nrow(sample_seq)) -->
+<!-- kable(unis, caption = "Counts of 2-grams with distance 1.", digits = 0) -->
+<!-- ``` -->
+
+
+## Encoding of amino acids
+
+We created 524 284 reduced amino acid alphabets (encodings) with different lengths (from three to six letters) using Ward's clusterization on the selected physicochemical properties from AAIndex database.
+
+## Best-performing encoding
+
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
+datatable(enc2df(list(`1` = "g", 
+                  `2` = c("k", "p", "r"), 
+                  `3` = c("i", "l", "v"), 
+                  `4` = c("f", "w", "y"), 
+                  `5` = c("a", "c", "h", "m"), 
+                  `6` = c("d", "e", "n", "q", "s", "t"))), 
+          rownames = FALSE, filter = "none", 
+          options = list(dom = 't')) 
+```
+
+
+## Best-performing encoding
+
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
+datatable(enc2df(list(`1` = "g", 
+                  `2` = c("k", "p", "r"), 
+                  `3` = c("i", "l", "v"), 
+                  `4` = c("f", "w", "y"), 
+                  `5` = c("a", "c", "h", "m"), 
+                  `6` = c("d", "e", "n", "q", "s", "t"))), 
+          rownames = FALSE, filter = "none", 
+          options = list(dom = 't')) %>% 
+  formatStyle(
+    'Elements',
+    backgroundColor = styleEqual("K, P, R", 'aquamarine')
+  )
+```
+
+Amino acids K, P, R are prohibited in hot spots [@paz_sequence_2004].
+
+## Best-performing encoding
+
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
+datatable(enc2df(list(`1` = "g", 
+                  `2` = c("k", "p", "r"), 
+                  `3` = c("i", "l", "v"), 
+                  `4` = c("f", "w", "y"), 
+                  `5` = c("a", "c", "h", "m"), 
+                  `6` = c("d", "e", "n", "q", "s", "t"))), 
+          rownames = FALSE, filter = "none", 
+          options = list(dom = 't')) %>% 
+  formatStyle(
+    'Elements',
+    backgroundColor = styleEqual("K, P, R", 'aquamarine')
+  )
+```
+
+The best-perfoming encoding was used to train AmyloGram, n-gram based predictor of amyloidogenicity.
+
+## Important n-grams
+
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE,fig.width=10}
+ngram_freq <- read.csv("ngram_freq.csv")
+
+ngram_freq_plot <- mutate(ngram_freq, decoded_name = gsub("_", "|", decoded_name)) %>%
+  mutate(decoded_name = factor(decoded_name, levels = as.character(decoded_name)),
+         amyloid = diff_freq > 0) %>%
+  melt() %>%
+  filter(variable %in% c("pos", "neg")) %>%
+  droplevels %>%
+  mutate(variable = factor(variable, labels = c("Amyloid", "Non-amyloid"))) %>% 
+  filter(association != "Not found") %>% 
+  rename(Frequency = value) %>% 
+  droplevels
+
+ngram_plot <- ggplot(ngram_freq_plot, aes(x = decoded_name, y = Frequency)) +
+  geom_bar(aes(fill = variable), position = "dodge", stat = "identity") +
+  geom_point(data = group_by(ngram_freq_plot, decoded_name)  %>% filter(Frequency == max(Frequency)),
+             aes(y = Frequency + 0.002, shape = association)) +
+  scale_fill_manual("", values = c("gold", "darkmagenta")) +
+  scale_shape_manual("Motif:", breaks = c("Amyloidogenic", "Non-amyloidogenic"), values = c(16, 17, NA)) +
+  scale_y_continuous("Frequency") +
+  scale_x_discrete("") +
+  my_theme +
+  theme(panel.grid.major.y = element_line(color = "lightgrey", size = 0.5)) 
+
+ggplotly(ngram_plot, tooltip = "y")
+```
+
+## Benchmark
+
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
+benchmark_dat <- structure(list(classifier = structure(c(4L, 3L, 1L, 2L), .Label = c("appnn", 
+"class14592_10", "FoldAmyloid", "PASTA2"), class = "factor"), 
+    AUC = c(0.854996271439225, 0.735098185433756, 0.834302759134974, 
+    0.897153865274671), MCC = c(0.429123592940917, 0.45255292317694, 
+    0.582260193831285, 0.630749412736651), Sens = c(0.38255033557047, 
+    0.751677852348993, 0.885906040268456, 0.865771812080537), 
+    Spec = c(0.951851851851852, 0.718518518518519, 0.722222222222222, 
+    0.788888888888889), pos = c(NA, NA, NA, 10L), nice_name = structure(c(4L, 
+    3L, 2L, 1L), .Label = c("14592", "appnn", "FoldAmyloid", 
+    "PASTA2"), class = "factor")), .Names = c("classifier", "AUC", 
+"MCC", "Sens", "Spec", "pos", "nice_name"), row.names = c(1L, 
+2L, 3L, 5L), class = "data.frame")
+
+benchmark_dat %>% 
+  mutate(classifier = as.character(classifier)) %>% 
+  mutate(classifier = ifelse(classifier == "class14592_10", "AmyloGram", classifier)) %>% 
+  rename(Software = classifier, Sensitivity = Sens, Specificity = Spec) %>% 
+  select(1L:5) %>% 
+  datatable(rownames = FALSE, filter = "none", 
+          options = list(dom = 't')) %>% 
+  formatRound(2L:5, 4) %>% 
+  formatStyle(
+    'AUC',
+    backgroundColor = styleInterval(c(0.897, 1), c('white', 'aquamarine', 'white'))
+  ) %>%
+  formatStyle(
+    'MCC',
+    backgroundColor = styleInterval(c(0.63, 1), c('white', 'aquamarine', 'white'))
+  ) %>% 
+  formatStyle(
+    'Sensitivity',
+    backgroundColor = styleInterval(c(0.88, 1), c('white', 'aquamarine', 'white'))
+  ) %>% 
+  formatStyle(
+    'Specificity',
+    backgroundColor = styleInterval(c(0.94, 1), c('white', 'aquamarine', 'white'))
+  )
+
+```
+
+Comparison of AmyloGram with APPNN [@familia_prediction_2015], PASTA2 [@walsh_pasta_2014] and FoldAmyloid [@garbuzynskiy_foldamyloid:_2010].
+
+## Summary
+
+Features extracted using n-gram analysis are informative enough to train accurate detectors of amyloidogenicity. They may also be used to explain the mechanism of amyloid aggregation.  
+
+[www.smorfland.uni.wroc.pl/amylogram](www.smorfland.uni.wroc.pl/amylogram)
+
+## References
