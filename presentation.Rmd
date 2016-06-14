@@ -1,16 +1,17 @@
 ---
-title: 'Przewidywanie właściwości sekwencji biologicznych w oparciu o analizę n-gramów'
+title: "Przewidywanie właściwości sekwencji biologicznych w oparciu o analizę n-gramów"
 author: "Michał Burdukiewicz"
 date: "28-06-2016"
 output:
-  ioslides_presentation: 
+  ioslides_presentation:
     css: shiny_paper.css
-  fig_height: 5.5
-fig_width: 9.5
-widescreen: yes
+    fig_height: 5.5
+    fig_width: 9.5
 bibliography: amyloids.bib
+widescreen: yes
+runtime: shiny
 ---
-  
+
 ```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
 library(DT)
 library(knitr)
@@ -21,6 +22,7 @@ library(dplyr)
 library(biogram)
 library(reshape2)
 library(plotly)
+library(shiny)
 
 options(DT.options = list(iDisplayLength = 6, searching = TRUE))
 
@@ -59,6 +61,28 @@ my_theme <- theme(
 )
 ```
 
+## Bioinformatyczne przewidywanie funkcji białek
+
+Prace eksperymentalne zazwyczaj poprzedza się analizami komputerowymi, które pozwalają ukierunkować kierunek dalszych badań.
+
+Przykłady:   
+
+* przewidywanie lokalizacji subkomórkowej białek (sygnałów kierujących),  
+* predykcja struktury drugorzędowej i trzeciorzędowej białek oraz kwasów nukleionowych,
+* przewidywanie miejsc wiązania czynników transkrypcyjnych,
+* poszukiwanie sekwencji kodujących białko.
+
+
+<!-- Taniej, szybciej -->
+
+## Cel pracy doktorskiej
+
+Opracowanie interpretowalnych metod przewidywania właściwości sekwencji biologicznych.
+
+Wybrane problemy:  
+
+* przewidywanie peptydów sygnałowych u eukariontów,    
+* przewidywanie białek amyloidogennych.  
 
 ## Białka amyloidowe
 
@@ -86,75 +110,93 @@ Zróżnicowanie budowy hot spots uniemożliwa opisanie ich konkretnych wzorcem, 
 
 ## n-gramy
 
-Przykładowe sekwencje.  S - sekwencja, P - pozycja. 
+Przykładowe sekwencje. S - sekwencja, P - pozycja. 
 
 ```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
-sample_seq <- matrix(sample(c("A", "C", "G", "T"), 18, replace = TRUE), nrow = 3)
+library(seqinr)
+aa_v <- seqinr::a()[-1]
+sample_seq <- matrix(sample(aa_v, 18, replace = TRUE), nrow = 3)
 colnames(sample_seq) <- paste0("P", 1L:ncol(sample_seq))
 rownames(sample_seq) <- paste0("S", 1L:nrow(sample_seq))
+sample_seq_dat <- data.frame(sample_seq)
 
-
-datatable(data.frame(sample_seq), 
-          rownames = TRUE, filter = "none", 
-          options = list(dom = 't'))
-
+renderDataTable(datatable(sample_seq_dat, 
+                          rownames = TRUE, filter = "none", 
+                          options = list(dom = 't')))
 ```
 
-## n-gramy
-
-Zliczenia 1-gramów.
-
-```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
-unis <- count_ngrams(sample_seq, 1, c("A", "C", "G", "T"))
-unis <- data.frame(as.matrix(unis))
-colnames(unis) <- decode_ngrams(colnames(unis))
-rownames(unis) <- paste0("S", 1L:nrow(sample_seq))
-
-datatable(data.frame(sample_seq), 
-          rownames = TRUE, filter = "none", 
-          options = list(dom = 't'))
+```{r, echo = FALSE}
+shinyApp(
+  
+  ui = fluidPage(
+    fluidRow(column(3, sliderInput("ngram_n", "Długość n-gramu (n):", 
+                                   min = 1,
+                                   max = 5,
+                                   step = 1,
+                                   value = 1)),
+             column(3, sliderInput("ngram_d", "Długość przerw:", 
+                                   min = 0,
+                                   max = 3,
+                                   step = 1,
+                                   value = 0))
+    ),
+    
+    h3("Przykładowe n-gramy"),
+    uiOutput("vector_ngrams")
+  ),
+  
+  server = function(input, output) {
+    output$vector_ngrams <- renderUI({
+      h3(paste0(paste0(gsub("_", "|", decode_ngrams(seq2ngrams(sample_seq, input[["ngram_n"]], aa_v, 
+                                                               d = input[["ngram_d"]])[1L:4])),
+                       collapse = ", "), ", ..."))
+    })
+  }
+)
 ```
 
-<!-- ## n-grams -->
 
-<!-- ```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE} -->
-<!-- unis <- count_ngrams(sample_seq, 2, c("A", "C", "G", "T")) -->
-<!-- unis <- data.frame(as.matrix(unis)) -->
-<!-- colnames(unis) <- decode_ngrams(colnames(unis)) -->
-<!-- rownames(unis) <- paste0("S", 1L:nrow(sample_seq)) -->
-<!-- kable(unis, caption = "Counts of 2-grams.", digits = 0) -->
-<!-- ``` -->
 
-<!-- ## n-grams -->
-
-<!-- ```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE} -->
-<!-- unis <- count_ngrams(sample_seq, 2, d = 1, c("A", "C", "G", "T")) -->
-<!-- unis <- data.frame(as.matrix(unis)) -->
-<!-- colnames(unis) <- sub("_", "|", decode_ngrams(colnames(unis))) -->
-<!-- rownames(unis) <- paste0("S", 1L:nrow(sample_seq)) -->
-<!-- kable(unis, caption = "Counts of 2-grams with distance 1.", digits = 0) -->
-<!-- ``` -->
 
 ## Problemy analizy n-gramowej
 
 n-gramy tworzą bardzo duże i trudne do analizy zbiory danych.
 
 ```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
-n <- 1:6
-n_max <- 4^n
+shinyApp(
+  
+  ui = fluidPage(
+    sliderInput("ngram_m", "Długość alfabetu:", 
+                                   min = 1,
+                                   max = 20,
+                                   step = 1,
+                                   value = 20),
+    
+    plotOutput("dim_curse")
+  ),
+  
+  server = function(input, output) {
+    output$dim_curse <- renderPlot({
+      L <- 6
+      m <- 20 
+      m2 <- input[["ngram_m"]]
+      n <- 1:6
+      n_max <- L*m^n
+      n_max2 <- L*m2^n
+      dat <- data.frame(n = c(n, n), n_max = c(n_max, n_max2), m = c(rep(m, 6), rep(m2, 6)))
+      dat[["m"]] <- factor(dat[["m"]])
+      
+      ggplot(dat, aes(x = n, y = n_max, color = m)) + 
+        geom_line(linetype="dotted", size=1.5) + 
+        geom_point(size=7, shape=21) +
+        scale_x_continuous("n", breaks = 0L:6) +
+        scale_y_continuous("Całkowita liczba n-gramów") +
+        scale_color_discrete("m (długość alfabetu)") +
+        my_theme
+    })
+  }
+)
 
-dat <- melt(sapply(2:5*5, function(i) i * n_max))
-dat[["Var2"]] <- factor(dat[["Var2"]])
-levels(dat[["Var2"]]) <- 2:5*5
-colnames(dat) <- c("n", "L", "n_max")
-dim_course <- ggplot(dat, aes(x = n, y = n_max, fill = L, col = L)) + 
-  geom_line(linetype="dotted", size=1.5) + 
-  geom_point(size=7, shape=21) +
-  scale_x_continuous(breaks = 0L:6) +
-  scale_y_continuous("Całkowita liczba n-gramów") +
-  my_theme
-
-ggplotly(dim_course, tooltip = c("x", "y"))
 ```
 
 ## Redukcja wymiarów - zmniejszenie alfabetu
@@ -172,19 +214,9 @@ $n$: długość n-gramu.
 
 n-gramy filtrowane są zwykle przy wykorzystaniu testów permutacyjnych. 
 
-Podczas testu permutacyjnego oznaczenia klas są losowo mieszane, a uzyskaną wartość danej statystyki (w tym przypadku information gain) porównuje się z wartością tej statystyki dla danych oryginalnych.
+Podczas testu permutacyjnego oznaczenia klas są losowo mieszane, a uzyskaną wartość danej statystyki (w tym przypadku information gain) porównuje się z wartością tej statystyki dla danych oryginalnych.  
 
-## Redukcja wymiarów - wybór n-gramów
-
-$      
-\textnormal{p-value} = \frac{N_{T_P > T_R}}{N}
-$
-
-gdzie $N_{T_P > T_R}$ to liczba przypadków kiedy $T_P$ (permutowana statystyka testowa) miała wartość bardziej skrajną niż $T_R$ (statystyka testowa dla niespermutowanych danych).
-
-## Redukcja wymiarów - wybór n-gramów
-
-Testy permutacyjne są bardzo wymagające obliczeniowo (zwłaszcza, kiedy konieczna jest precyzyjna estymacja małych p-wartości, poniważ liczba permutacji jest odwrotnie proporcjonalna do przedziału między p-wartościami). Dlatego też opracowano Quick Permutation Test, który pozwala wielokrotnie szybciej filtrować n-gramy.
+Testy permutacyjne są bardzo wymagające obliczeniowo, dlatego też opracowałem Quick Permutation Test, który pozwala wielokrotnie szybciej filtrować n-gramy.
 
 
 ## Amyloidy - redukcja alfabetu
@@ -195,25 +227,26 @@ Stworzono 524 284 zredukowane alfabety o różnych długościach (od trzech do s
 
 ```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
 datatable(enc2df(list(`1` = "g", 
-                  `2` = c("k", "p", "r"), 
-                  `3` = c("i", "l", "v"), 
-                  `4` = c("f", "w", "y"), 
-                  `5` = c("a", "c", "h", "m"), 
-                  `6` = c("d", "e", "n", "q", "s", "t"))), 
+                      `2` = c("k", "p", "r"), 
+                      `3` = c("i", "l", "v"), 
+                      `4` = c("f", "w", "y"), 
+                      `5` = c("a", "c", "h", "m"), 
+                      `6` = c("d", "e", "n", "q", "s", "t"))), 
           rownames = FALSE, filter = "none", 
           options = list(dom = 't')) 
 ```
 
+Przykładowo: GKRID -- 12236.
 
 ## Najlepsze kodowanie
 
 ```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
 datatable(enc2df(list(`1` = "g", 
-                  `2` = c("k", "p", "r"), 
-                  `3` = c("i", "l", "v"), 
-                  `4` = c("f", "w", "y"), 
-                  `5` = c("a", "c", "h", "m"), 
-                  `6` = c("d", "e", "n", "q", "s", "t"))), 
+                      `2` = c("k", "p", "r"), 
+                      `3` = c("i", "l", "v"), 
+                      `4` = c("f", "w", "y"), 
+                      `5` = c("a", "c", "h", "m"), 
+                      `6` = c("d", "e", "n", "q", "s", "t"))), 
           rownames = FALSE, filter = "none", 
           options = list(dom = 't')) %>% 
   formatStyle(
@@ -228,11 +261,11 @@ Aminowaksy K, P, R nie powinny występować w obrębie hot spots [@paz_sequence_
 
 ```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
 datatable(enc2df(list(`1` = "g", 
-                  `2` = c("k", "p", "r"), 
-                  `3` = c("i", "l", "v"), 
-                  `4` = c("f", "w", "y"), 
-                  `5` = c("a", "c", "h", "m"), 
-                  `6` = c("d", "e", "n", "q", "s", "t"))), 
+                      `2` = c("k", "p", "r"), 
+                      `3` = c("i", "l", "v"), 
+                      `4` = c("f", "w", "y"), 
+                      `5` = c("a", "c", "h", "m"), 
+                      `6` = c("d", "e", "n", "q", "s", "t"))), 
           rownames = FALSE, filter = "none", 
           options = list(dom = 't')) %>% 
   formatStyle(
@@ -259,44 +292,43 @@ ngram_freq_plot <- mutate(ngram_freq, decoded_name = gsub("_", "|", decoded_name
   rename(Frequency = value) %>% 
   droplevels
 
-ngram_plot <- ggplot(ngram_freq_plot, aes(x = decoded_name, y = Frequency)) +
-  geom_bar(aes(fill = variable), position = "dodge", stat = "identity") +
-  geom_point(data = group_by(ngram_freq_plot, decoded_name)  %>% filter(Frequency == max(Frequency)),
-             aes(y = Frequency + 0.002, shape = association)) +
-  scale_fill_manual("", values = c("gold", "darkmagenta")) +
-  scale_shape_manual("Motif:", values = c(16, 17)) +
-  scale_y_continuous("Frequency") +
+ggplot(ngram_freq_plot, aes(x = decoded_name, y = amyloid, color = association,
+                            label = decoded_name)) +
+  geom_text(size = 5) +
+  scale_color_manual("Dane eksperymentalne", values = c("red", "darkmagenta"), 
+                     labels = c("Amyloidogenny", "Nieamyloidogenny")) +
+  scale_y_discrete("Predykcja (AmyloGram)", labels = c("Nieamyloidogenny", "Amyloidogenny")) +
   scale_x_discrete("") +
   my_theme +
   theme(panel.grid.major.y = element_line(color = "lightgrey", size = 0.5)) 
 
-ggplotly(ngram_plot, tooltip = "y")
 ```
 
 ## Benchmark
 
 ```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
-benchmark_dat <- structure(list(classifier = structure(c(4L, 3L, 1L, 2L), .Label = c("appnn", 
-"class14592_10", "FoldAmyloid", "PASTA2"), class = "factor"), 
-    AUC = c(0.854996271439225, 0.735098185433756, 0.834302759134974, 
-    0.897153865274671), MCC = c(0.429123592940917, 0.45255292317694, 
-    0.582260193831285, 0.630749412736651), Sens = c(0.38255033557047, 
-    0.751677852348993, 0.885906040268456, 0.865771812080537), 
-    Spec = c(0.951851851851852, 0.718518518518519, 0.722222222222222, 
-    0.788888888888889), pos = c(NA, NA, NA, 10L), nice_name = structure(c(4L, 
-    3L, 2L, 1L), .Label = c("14592", "appnn", "FoldAmyloid", 
-    "PASTA2"), class = "factor")), .Names = c("classifier", "AUC", 
-"MCC", "Sens", "Spec", "pos", "nice_name"), row.names = c(1L, 
-2L, 3L, 5L), class = "data.frame")
+benchmark_dat <- structure(list(classifier = structure(c(4L, 3L, 1L, 2L), 
+                                                       .Label = c("appnn", "class14592_10", "FoldAmyloid", "PASTA2"),
+                                                       class = "factor"), 
+                                AUC = c(0.854996271439225, 0.735098185433756, 
+                                        0.834302759134974,  0.897153865274671), 
+                                MCC = c(0.429123592940917, 0.45255292317694, 
+                                        0.582260193831285, 0.630749412736651), 
+                                pos = c(NA, NA, NA, 10L), 
+                                nice_name = structure(c(4L, 3L, 2L, 1L), 
+                                                      .Label = c("14592", "appnn", "FoldAmyloid", "PASTA2"), 
+                                                      class = "factor")),
+                           .Names = c("classifier", "AUC", "MCC", "pos", "nice_name"), 
+                           row.names = c(1L, 2L, 3L, 5L), class = "data.frame")
 
 benchmark_dat %>% 
   mutate(classifier = as.character(classifier)) %>% 
   mutate(classifier = ifelse(classifier == "class14592_10", "AmyloGram", classifier)) %>% 
-  rename(Software = classifier, Sensitivity = Sens, Specificity = Spec) %>% 
+  rename(Software = classifier) %>% 
   select(1L:5) %>% 
   datatable(rownames = FALSE, filter = "none", 
-          options = list(dom = 't')) %>% 
-  formatRound(2L:5, 4) %>% 
+            options = list(dom = 't')) %>% 
+  formatRound(2L:3, 4) %>% 
   formatStyle(
     'AUC',
     backgroundColor = styleInterval(c(0.897, 1), c('white', 'aquamarine', 'white'))
@@ -304,14 +336,6 @@ benchmark_dat %>%
   formatStyle(
     'MCC',
     backgroundColor = styleInterval(c(0.63, 1), c('white', 'aquamarine', 'white'))
-  ) %>% 
-  formatStyle(
-    'Sensitivity',
-    backgroundColor = styleInterval(c(0.88, 1), c('white', 'aquamarine', 'white'))
-  ) %>% 
-  formatStyle(
-    'Specificity',
-    backgroundColor = styleInterval(c(0.94, 1), c('white', 'aquamarine', 'white'))
   )
 
 ```
@@ -324,5 +348,10 @@ Analiza metodami n-gramowymi pozwala na precyzyjniejsze przewidywanie właściwo
 
 [AmyloGram](www.smorfland.uni.wroc.pl/amylogram)  
 [signalHsmm](www.smorfland.uni.wroc.pl/signalHsmm)
+
+## Perspektywy dalszych badań
+
+* Opracowanie predykcji bakteryjnych peptydów sygnałowych.  
+* Analiza n-gramów pochodzących z genomów mitochondrialnych różnych grup taksonomicznych.
 
 ## References
