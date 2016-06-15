@@ -63,7 +63,7 @@ my_theme <- theme(
 
 ## Bioinformatyczne przewidywanie funkcji białek
 
-Prace eksperymentalne zazwyczaj poprzedza się analizami komputerowymi, które pozwalają ukierunkować kierunek dalszych badań.
+Prace eksperymentalne zazwyczaj poprzedza się analizami komputerowymi, które pozwalają optymalniej zaprojektować dalsze badania.
 
 Przykłady:   
 
@@ -72,27 +72,33 @@ Przykłady:
 * przewidywanie miejsc wiązania czynników transkrypcyjnych,
 * poszukiwanie sekwencji kodujących białko.
 
-
 <!-- Taniej, szybciej -->
-
-## Cel pracy doktorskiej
-
-Opracowanie interpretowalnych metod przewidywania właściwości sekwencji biologicznych.
-
-Wybrane problemy:  
-
-* przewidywanie peptydów sygnałowych u eukariontów,    
-* przewidywanie białek amyloidogennych.  
 
 ## Białka amyloidowe
 
 Białka związane z licznymi chorobami (np. choroby Alzheimera, Parkinsona, Creutzfeldta-Jakoba) tworzące szkodliwe agregaty.
 
-Proces ten jest inicjowany w obrębie tzw. hot spots, krótkich (6-15 aminokwasów) podsekwencji, które występują we wszystkich białkach amyloidowych i formują specyficzne struktury $\beta$ typu "zamka błyskawicznego" (zipper-like).
-
 ## Hot spots
 
+Proces ten jest inicjowany w obrębie tzw. hot spots, krótkich (6-15 aminokwasów) podsekwencji, które występują we wszystkich białkach amyloidowych i formują specyficzne struktury $\beta$ typu "zamka błyskawicznego" (zipper-like).
+
 Zróżnicowanie budowy hot spots uniemożliwa opisanie ich konkretnych wzorcem, a w konsekwencji predykcję potencjalnych miejsc inicjacji agregacji amyloidowej w białku. 
+
+## Cel pracy doktorskiej
+
+Opracowanie interpretowalnych metod przewidywania właściwości sekwencji biologicznych.
+
+Wybrany problem: przewidywanie białek amyloidogennych.
+
+Motywacja:  
+
+* rola białek amyloidogennych w chorobach neurodegeneratywnych,  
+* niska precyzja innych programów przewidujących białka amyloidowe,  
+* trudno interpretowalne reguły decyzyjne wykorzystywane przez inne programy.  
+
+## Programy przewidujące lokalizację hot spots
+
+Istnieją już programy przewidujące miejsca inicjacji agregacji, ale ich precyzja nie jest wysoka. Dodatkowo, wykorzystywane przez nie reguły decyzyjne są trudno interpretowalne.
 
 <!-- ## Peptydy sygnałowe -->
 
@@ -141,13 +147,17 @@ shinyApp(
                                    value = 0))
     ),
     
-    h3("Przykładowe n-gramy"),
+    uiOutput("ngram_names"),
     uiOutput("vector_ngrams")
   ),
   
   server = function(input, output) {
+    output$ngram_names <- renderUI({
+      h2(paste0("Przykładowe ", input[["ngram_n"]], "-gramy (przerwa ", input[["ngram_d"]], ")"))
+    })
+    
     output$vector_ngrams <- renderUI({
-      h3(paste0(paste0(gsub("_", "|", decode_ngrams(seq2ngrams(sample_seq, input[["ngram_n"]], aa_v, 
+      h2(paste0(paste0(gsub("_", "-", decode_ngrams(seq2ngrams(sample_seq, input[["ngram_n"]], aa_v, 
                                                                d = input[["ngram_d"]])[1L:4])),
                        collapse = ", "), ", ..."))
     })
