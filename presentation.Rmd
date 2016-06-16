@@ -6,7 +6,7 @@ output:
   ioslides_presentation:
     css: shiny_paper.css
     fig_height: 5.5
-    fig_width: 9.5
+    fig_width: 7.5
 bibliography: amyloids.bib
 widescreen: yes
 runtime: shiny
@@ -53,7 +53,7 @@ my_theme <- theme(
   plot.background=element_rect(fill = "transparent",
                                color = "transparent"),
   #uncomment for publications
-  plot.margin = unit(rep(0.02, 4), "inches"),
+  plot.margin = unit(rep(0.2, 4), "inches"),
   plot.title = element_text(size=20 + size_mod),
   
   strip.background = element_rect(fill = "NA", color = "NA"),
@@ -121,6 +121,7 @@ Przykładowe sekwencje. S - sekwencja, P - pozycja.
 ```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
 library(seqinr)
 aa_v <- seqinr::a()[-1]
+set.seed(1)
 sample_seq <- matrix(sample(aa_v, 18, replace = TRUE), nrow = 3)
 colnames(sample_seq) <- paste0("P", 1L:ncol(sample_seq))
 rownames(sample_seq) <- paste0("S", 1L:nrow(sample_seq))
@@ -158,7 +159,7 @@ shinyApp(
     
     output$vector_ngrams <- renderUI({
       h2(paste0(paste0(gsub("_", "-", decode_ngrams(seq2ngrams(sample_seq, input[["ngram_n"]], aa_v, 
-                                                               d = input[["ngram_d"]])[1L:4])),
+                                                               d = input[["ngram_d"]])[1L:3])),
                        collapse = ", "), ", ..."))
     })
   }
@@ -289,28 +290,26 @@ Najlepsze kodowanie wykorzystano do wyuczenia programu AmyloGram, opartego na n-
 ## Informatywne n-gramy
 
 ```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE,fig.width=10}
-ngram_freq <- read.csv("ngram_freq.csv")
+ngram_freq <- read.csv("ngram_freq.csv") %>% 
+  mutate(amyloid = diff_freq > 0) %>%
+  select(decoded_name, amyloid, association) %>% 
+  filter(!duplicated(.))
 
-ngram_freq_plot <- mutate(ngram_freq, decoded_name = gsub("_", "|", decoded_name)) %>%
-  mutate(decoded_name = factor(decoded_name, levels = as.character(decoded_name)),
-         amyloid = diff_freq > 0) %>%
-  melt() %>%
-  filter(variable %in% c("pos", "neg"),
-         association != "Not found") %>%
-  droplevels %>%
-  mutate(variable = factor(variable, labels = c("Amyloidogenny", "Nieamyloidogenny"))) %>% 
-  rename(Frequency = value) %>% 
-  droplevels
+ngram_freq_plot <- table(ngram_freq[["association"]], ngram_freq[["amyloid"]]) %>% 
+  melt %>% 
+  rename(association = Var1, pred = Var2) %>% 
+  mutate(association = factor(association, labels = c("Amyloidogenny", "Nieamyloidogenny", "Niesprawdzony")),
+         pred = factor(pred, labels = rev(c("Amyloidogenny", "Nieamyloidogenny"))))
+my_dodge <- position_dodge(1)
 
-ggplot(ngram_freq_plot, aes(x = decoded_name, y = amyloid, color = association,
-                            label = decoded_name)) +
-  geom_text(size = 5) +
-  scale_color_manual("Dane eksperymentalne", values = c("red", "darkmagenta"), 
-                     labels = c("Amyloidogenny", "Nieamyloidogenny")) +
-  scale_y_discrete("Predykcja (AmyloGram)", labels = c("Nieamyloidogenny", "Amyloidogenny")) +
-  scale_x_discrete("") +
-  my_theme +
-  theme(panel.grid.major.y = element_line(color = "lightgrey", size = 0.5)) 
+ggplot(ngram_freq_plot, aes(fill = pred, y = value, x = association, label = value)) +
+  geom_bar(stat = "identity", position = my_dodge) +
+  geom_text(position = my_dodge, vjust = -0.5) +
+  scale_x_discrete("Dane eksperymentalne\n") +
+  scale_y_discrete("Liczba n-gramów") +
+  coord_cartesian(ylim = c(0, 30)) +
+  scale_fill_manual("Predykcja AmyloGram", values = c("darkmagenta", "cadetblue")) +
+  my_theme 
 
 ```
 
