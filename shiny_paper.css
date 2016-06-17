@@ -6849,3 +6849,8 @@ slides > slide {
   background-repeat: no-repeat !important;
   background-position: 93.1% 4% !important;
 }
+
+IMG.displayed {
+    display: block;
+    margin-left: auto;
+    margin-right: auto }

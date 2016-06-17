@@ -78,6 +78,10 @@ Przykłady:
 
 Białka związane z licznymi chorobami (np. choroby Alzheimera, Parkinsona, Creutzfeldta-Jakoba) tworzące szkodliwe agregaty.
 
+<IMG class="displayed" src="static_figures/amyloid_aggregates.jpg" style="width:504px;height:350px;">
+
+Strittmatter Laboratory, Yale University Photo/Adam Kaufman
+
 ## Hot spots
 
 Proces ten jest inicjowany w obrębie tzw. hot spots, krótkich (6-15 aminokwasów) podsekwencji, które występują we wszystkich białkach amyloidowych i formują specyficzne struktury $\beta$ typu "zamka błyskawicznego" (zipper-like).
