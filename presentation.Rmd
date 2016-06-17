@@ -84,9 +84,11 @@ Strittmatter Laboratory, Yale University Photo/Adam Kaufman
 
 ## Hot spots
 
-Proces ten jest inicjowany w obrębie tzw. hot spots, krótkich (6-15 aminokwasów) podsekwencji, które występują we wszystkich białkach amyloidowych i formują specyficzne struktury $\beta$ typu "zamka błyskawicznego" (zipper-like).
+Proces ten jest inicjowany w obrębie tzw. hot spots, krótkich (6-15 aminokwasów), ale zróżnicowanych podsekwencji, które występują we wszystkich białkach amyloidowych i formują specyficzne struktury $\beta$ typu "zamka błyskawicznego" (zipper-like).
 
-Zróżnicowanie budowy hot spots uniemożliwa opisanie ich konkretnych wzorcem, a w konsekwencji predykcję potencjalnych miejsc inicjacji agregacji amyloidowej w białku. 
+<IMG class="displayed" src="static_figures/zipper_structure.jpg" style="width:550px;height:220px;">
+
+@sawaya_atomic_2007
 
 ## Cel pracy doktorskiej
 
@@ -101,6 +103,8 @@ Motywacja:
 * trudno interpretowalne reguły decyzyjne wykorzystywane przez inne programy.  
 
 ## Programy przewidujące lokalizację hot spots
+
+Zróżnicowanie budowy hot spots uniemożliwa opisanie ich konkretnych wzorcem.  
 
 Istnieją już programy przewidujące miejsca inicjacji agregacji, ale ich precyzja nie jest wysoka. Dodatkowo, wykorzystywane przez nie reguły decyzyjne są trudno interpretowalne.
 
