@@ -68,7 +68,7 @@ Prace eksperymentalne zazwyczaj poprzedza się analizami komputerowymi, które p
 Przykłady:   
 
 * przewidywanie lokalizacji subkomórkowej białek (sygnałów kierujących),  
-* predykcja struktury drugorzędowej i trzeciorzędowej białek oraz kwasów nukleionowych,
+* predykcja struktury drugorzędowej i trzeciorzędowej białek oraz kwasów nukleinowych,
 * przewidywanie miejsc wiązania czynników transkrypcyjnych,
 * poszukiwanie sekwencji kodujących białko.
 
@@ -78,9 +78,9 @@ Przykłady:
 
 Białka związane z licznymi chorobami (np. choroby Alzheimera, Parkinsona, Creutzfeldta-Jakoba) tworzące szkodliwe agregaty.
 
-<IMG class="displayed" src="static_figures/amyloid_aggregates.jpg" style="width:504px;height:350px;">
+<IMG class="displayed" src="static_figures/amyloid_aggregates.jpg" style="width:404px;height:300px;">
 
-Strittmatter Laboratory, Yale University Photo/Adam Kaufman
+Agregaty amyloid (czerwony) wokół neuronów (zielony). Strittmatter Laboratory, Yale University
 
 ## Hot spots
 
@@ -106,7 +106,7 @@ Motywacja:
 
 Zróżnicowanie budowy hot spots uniemożliwa opisanie ich konkretnych wzorcem.  
 
-Istnieją już programy przewidujące miejsca inicjacji agregacji, ale ich precyzja nie jest wysoka. Dodatkowo, wykorzystywane przez nie reguły decyzyjne są trudno interpretowalne.
+Istnieją już programy przewidujące miejsca inicjacji agregacji takie jak: APPNN [@familia_prediction_2015], PASTA2 [@walsh_pasta_2014] i FoldAmyloid [@garbuzynskiy_foldamyloid:_2010], ale ich precyzja nie jest wysoka. Dodatkowo, wykorzystywane przez nie reguły decyzyjne są trudno interpretowalne.
 
 <!-- ## Peptydy sygnałowe -->
 
@@ -144,12 +144,12 @@ renderDataTable(datatable(sample_seq_dat,
 shinyApp(
   
   ui = fluidPage(
-    fluidRow(column(3, sliderInput("ngram_n", "Długość n-gramu (n):", 
+    fluidRow(column(3, numericInput("ngram_n", "Długość n-gramu (n):", 
                                    min = 1,
                                    max = 5,
                                    step = 1,
                                    value = 1)),
-             column(3, sliderInput("ngram_d", "Długość przerw:", 
+             column(3, numericInput("ngram_d", "Długość przerw:", 
                                    min = 0,
                                    max = 3,
                                    step = 1,
@@ -185,7 +185,7 @@ n-gramy tworzą bardzo duże i trudne do analizy zbiory danych.
 shinyApp(
   
   ui = fluidPage(
-    sliderInput("ngram_m", "Długość alfabetu:", 
+    numericInput("ngram_m", "Długość alfabetu:", 
                                    min = 1,
                                    max = 20,
                                    step = 1,
@@ -196,20 +196,20 @@ shinyApp(
   
   server = function(input, output) {
     output$dim_curse <- renderPlot({
-      L <- 6
+      L <- 5
       m <- 20 
       m2 <- input[["ngram_m"]]
-      n <- 1:6
+      n <- 1:5
       n_max <- L*m^n
       n_max2 <- L*m2^n
-      dat <- data.frame(n = c(n, n), n_max = c(n_max, n_max2), m = c(rep(m, 6), rep(m2, 6)))
+      dat <- data.frame(n = c(n, n), n_max = c(n_max, n_max2), m = c(rep(m, 5), rep(m2, 5)))
       dat[["m"]] <- factor(dat[["m"]])
       
       ggplot(dat, aes(x = n, y = n_max, color = m)) + 
         geom_line(linetype="dotted", size=1.5) + 
-        geom_point(size=7, shape=21) +
-        scale_x_continuous("n", breaks = 0L:6) +
-        scale_y_continuous("Całkowita liczba n-gramów") +
+        geom_point(size=7, shape=16) +
+        scale_x_continuous("n", breaks = 0L:5) +
+        scale_y_log10("Całkowita liczba n-gramów (skala logarytmiczna)") +
         scale_color_discrete("m (długość alfabetu)") +
         my_theme
     })
@@ -274,7 +274,7 @@ datatable(enc2df(list(`1` = "g",
   )
 ```
 
-Aminowaksy K, P, R nie powinny występować w obrębie hot spots [@paz_sequence_2004].
+Aminowaksy K, P, R nie powinny występować w obrębie hot spots.
 
 ## Najlepsze kodowanie
 
@@ -289,11 +289,15 @@ datatable(enc2df(list(`1` = "g",
           options = list(dom = 't')) %>% 
   formatStyle(
     'Elementy',
-    backgroundColor = styleEqual("K, P, R", 'aquamarine')
+    backgroundColor = styleEqual(c("I, L, V", "F, W, Y"), c('aquamarine', 'aquamarine'))
   )
 ```
 
-Najlepsze kodowanie wykorzystano do wyuczenia programu AmyloGram, opartego na n-gramach predyktora amyloidogenności.
+Aminowaksy hydrofobowe są typowe dla hot spots.
+
+## Informatywne n-gramy
+
+Podczas analizy zidentyfikowano 65 najbardziej informatywnych n-gramów. Część z nich została potwierdzona eksperymentalnie [@paz_sequence_2004].
 
 ## Informatywne n-gramy
 
@@ -307,19 +311,26 @@ ngram_freq_plot <- table(ngram_freq[["association"]], ngram_freq[["amyloid"]]) %
   melt %>% 
   rename(association = Var1, pred = Var2) %>% 
   mutate(association = factor(association, labels = c("Amyloidogenny", "Nieamyloidogenny", "Niesprawdzony")),
-         pred = factor(pred, labels = rev(c("Amyloidogenny", "Nieamyloidogenny"))))
+         pred = factor(pred, labels = rev(c("Predykcja: amyloidogenny", "Predykcja: nieamyloidogenny"))))
 my_dodge <- position_dodge(1)
 
 ggplot(ngram_freq_plot, aes(fill = pred, y = value, x = association, label = value)) +
   geom_bar(stat = "identity", position = my_dodge) +
-  geom_text(position = my_dodge, vjust = -0.5) +
+  geom_text(size = 6, position = my_dodge, vjust = -0.5) +
   scale_x_discrete("Dane eksperymentalne\n") +
-  scale_y_discrete("Liczba n-gramów") +
+  scale_y_continuous("Liczba n-gramów") +
   coord_cartesian(ylim = c(0, 30)) +
   scale_fill_manual("Predykcja AmyloGram", values = c("darkmagenta", "cadetblue")) +
+  #guides(fill = FALSE) +
+  facet_wrap(~ pred) +
   my_theme 
 
 ```
+
+
+## Najlepsze kodowanie
+
+Najlepsze kodowanie wykorzystano do wyuczenia programu AmyloGram, predyktora amyloidogenności opartego na n-gramach.
 
 ## Benchmark
 
@@ -342,7 +353,7 @@ benchmark_dat %>%
   mutate(classifier = as.character(classifier)) %>% 
   mutate(classifier = ifelse(classifier == "class14592_10", "AmyloGram", classifier)) %>% 
   rename(Software = classifier) %>% 
-  select(1L:5) %>% 
+  select(1L:3) %>% 
   datatable(rownames = FALSE, filter = "none", 
             options = list(dom = 't')) %>% 
   formatRound(2L:3, 4) %>% 
