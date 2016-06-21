@@ -386,6 +386,48 @@ Dzięki analize n-gramów jest również możliwe precyzyjne przewidywanie pepty
 
 <IMG class="displayed" src="static_figures/SP.png" style="width:550px;height:920px;">
 
+## Predykcja peptydów sygnałowych
+
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE,fig.width=10}
+freq_nondeg <- read.csv2("freq_nondeg.csv")[, -1]
+freq_deg <- read.csv2("freq_deg.csv")[, -1]
+
+do_pca <- function(x) 
+  x %>% 
+  select(-type, -taxon) %>% 
+  prcomp(center = TRUE, scale = TRUE) %>% 
+  getElement("x") %>% 
+  data.frame() %>% 
+  select(1, 2) %>% 
+  cbind(select(x, type, taxon), .) %>% 
+  mutate(type_nice = factor(type, labels = c("dojrzałe białko", "peptyd sygnałowy")),
+         taxon_nice = factor(taxon, labels = c("inne", "Plasmodium"))) %>% 
+  mutate(both = paste0(type_nice, " (", taxon_nice, ")"))
+
+dat_deg <- do_pca(freq_deg) 
+dat_nondeg <- do_pca(freq_nondeg)
+
+plot_pca <- function(x)
+  ggplot(x, aes(x = PC1, y = PC2, color = both, shape = both, fill = both, linetype = both)) + 
+  geom_density_2d(color = "black", contour = TRUE) +
+  #geom_point() +
+  stat_density2d(aes(fill=both,alpha=..level..), color = "black", 
+                 contour = TRUE, geom="polygon") +
+  scale_linetype_discrete("") +
+  scale_fill_discrete("") +
+  scale_alpha_continuous(range = c(0.35, 1)) +
+  guides(alpha = FALSE) +
+  my_theme
+
+plot_pca(dat_nondeg) + ggtitle("Pełny alfabet")
+```
+
+## Predykcja peptydów sygnałowych
+
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE,fig.width=10}
+plot_pca(dat_deg) + ggtitle("Zredukowany alphabet")
+```
+
 
 ## Podsumowanie
 
