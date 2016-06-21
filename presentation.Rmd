@@ -69,7 +69,7 @@ Przykłady:
 
 * przewidywanie lokalizacji subkomórkowej białek (sygnałów kierujących),  
 * predykcja struktury drugorzędowej i trzeciorzędowej białek oraz kwasów nukleinowych,
-* przewidywanie miejsc wiązania czynników transkrypcyjnych,
+* wykrywanie miejsc wiązania czynników transkrypcyjnych,
 * poszukiwanie sekwencji kodujących białko.
 
 <!-- Taniej, szybciej -->
@@ -78,7 +78,7 @@ Przykłady:
 
 Białka związane z licznymi chorobami (np. choroby Alzheimera, Parkinsona, Creutzfeldta-Jakoba) tworzące szkodliwe agregaty.
 
-<IMG class="displayed" src="static_figures/amyloid_aggregates.jpg" style="width:404px;height:300px;">
+<IMG class="disxplayed" src="static_figures/amyloid_aggregates.jpg" style="width:404px;height:300px;">
 
 Agregaty amyloid (czerwony) wokół neuronów (zielony). Strittmatter Laboratory, Yale University
 
@@ -174,9 +174,6 @@ shinyApp(
 )
 ```
 
-
-
-
 ## Problemy analizy n-gramowej
 
 n-gramy tworzą bardzo duże i trudne do analizy zbiory danych.
@@ -205,11 +202,14 @@ shinyApp(
       dat <- data.frame(n = c(n, n), n_max = c(n_max, n_max2), m = c(rep(m, 5), rep(m2, 5)))
       dat[["m"]] <- factor(dat[["m"]])
       
-      ggplot(dat, aes(x = n, y = n_max, color = m)) + 
+      ggplot(dat, aes(x = n, y = n_max, color = m, label = formatC(n_max, digits = 4))) + 
         geom_line(linetype="dotted", size=1.5) + 
         geom_point(size=7, shape=16) +
+        geom_text(size = 6, vjust = -1.5) +
+        #coord_cartesian(ylim = c(0, 2e7)) +
         scale_x_continuous("n", breaks = 0L:5) +
-        scale_y_log10("Całkowita liczba n-gramów (skala logarytmiczna)") +
+        scale_y_continuous("Całkowita liczba n-gramów (skala logarytmiczna)",
+                           trans = "log10") +
         scale_color_discrete("m (długość alfabetu)") +
         my_theme
     })
@@ -233,10 +233,21 @@ $n$: długość n-gramu.
 
 n-gramy filtrowane są zwykle przy wykorzystaniu testów permutacyjnych. 
 
-Podczas testu permutacyjnego oznaczenia klas są losowo mieszane, a uzyskaną wartość danej statystyki (w tym przypadku information gain) porównuje się z wartością tej statystyki dla danych oryginalnych.  
+Podczas testu permutacyjnego oznaczenia klas są losowo mieszane, a uzyskaną wartość danej statystyki (w tym przypad ku information gain) porównuje się z wartością tej statystyki dla danych oryginalnych.  
+
+## Test permutacyjny
+
+$$      
+\textrm{p-value} = \frac{N_{T_P > T_R}}{N}
+$$
+
+$N_{T_P > T_R}$: wszystkie przypadki, kiedy $T_P$ (permutowana statystyka testowa) przyjmuje wartości bardziej ekstremalne niż $T_R$ (statystyka testowa dla danych oryginalnych).  
+
+$N$: liczba wszystkich permutacji.  
+
+## QuiPT
 
 Testy permutacyjne są bardzo wymagające obliczeniowo, dlatego też opracowałem Quick Permutation Test, który pozwala wielokrotnie szybciej filtrować n-gramy.
-
 
 ## Amyloidy - redukcja alfabetu
 
@@ -327,7 +338,6 @@ ggplot(ngram_freq_plot, aes(fill = pred, y = value, x = association, label = val
 
 ```
 
-
 ## Najlepsze kodowanie
 
 Najlepsze kodowanie wykorzystano do wyuczenia programu AmyloGram, predyktora amyloidogenności opartego na n-gramach.
@@ -369,6 +379,13 @@ benchmark_dat %>%
 ```
 
 Porównanie AmyloGramu z APPNN [@familia_prediction_2015], PASTA2 [@walsh_pasta_2014] i FoldAmyloid [@garbuzynskiy_foldamyloid:_2010].
+
+## Predykcja peptydów sygnałowych
+
+Dzięki analize n-gramów jest również możliwe precyzyjne przewidywanie peptydów sygnałowych, n-końcowych sekwencji kierujących białka do lokalizacji pozakomórkowych.  
+
+<IMG class="displayed" src="static_figures/SP.png" style="width:550px;height:920px;">
+
 
 ## Podsumowanie
 
