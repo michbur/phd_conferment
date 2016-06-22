@@ -342,7 +342,7 @@ ggplot(ngram_freq_plot, aes(fill = pred, y = value, x = association, label = val
 
 Najlepsze kodowanie wykorzystano do wyuczenia programu AmyloGram, predyktora amyloidogenności opartego na n-gramach.
 
-## Benchmark
+## AmyloGram - benchmark
 
 ```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
 benchmark_dat <- structure(list(classifier = structure(c(4L, 3L, 1L, 2L), 
@@ -425,8 +425,28 @@ plot_pca(dat_nondeg) + ggtitle("Pełny alfabet")
 ## Predykcja peptydów sygnałowych
 
 ```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE,fig.width=10}
-plot_pca(dat_deg) + ggtitle("Zredukowany alphabet")
+plot_pca(dat_deg) + ggtitle("Zredukowany alphabet signalHsmm")
 ```
+
+## signalHsmm - benchmark
+
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
+read.csv("S1_plasmodium_benchmark.csv") %>% 
+  select(Software, AUC, MCC) %>% 
+  slice(c(1L:7, 9)) %>% 
+  datatable(rownames = FALSE, filter = "none", 
+            options = list(dom = 't', pageLength = 10)) %>% 
+  formatRound(2L:3, 4) %>%
+  formatStyle(
+    'AUC',
+    backgroundColor = styleInterval(c(0.93, 1), c('white', 'aquamarine', 'white'))
+  ) %>%
+  formatStyle(
+    'MCC',
+    backgroundColor = styleInterval(c(0.76, 1), c('white', 'aquamarine', 'white'))
+  )
+```
+
 
 
 ## Podsumowanie
