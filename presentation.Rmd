@@ -441,4 +441,21 @@ Analiza metodami n-gramowymi pozwala na precyzyjniejsze przewidywanie właściwo
 * Opracowanie predykcji bakteryjnych peptydów sygnałowych.  
 * Analiza n-gramów pochodzących z genomów mitochondrialnych różnych grup taksonomicznych.
 
+## AUC poszczególnych alfabetów
+
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE,fig.width=10}
+
+amyloids_plot <- read.csv2("AUC_boxplot6.csv", row.names = NULL)
+ggplot(amyloids_plot, aes(x = len_range, y = AUC_mean)) +
+  geom_boxplot(outlier.color = "grey", outlier.shape = 1) +
+  geom_point(data = filter(amyloids_plot, et != "Encoding"), 
+             aes(x = len_range, y = AUC_mean, color = et, shape = et), size = 4) +
+  scale_x_discrete("") +
+  scale_y_continuous("Mean AUC") +
+  scale_shape_manual("", values = c(16, NA, 15, 15), drop = FALSE) +
+  scale_color_manual("", values = c("red", "grey", "blue", "green"), drop = FALSE) +
+  my_theme + 
+  coord_flip()
+```
+
 ## References
