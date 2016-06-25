@@ -78,7 +78,7 @@ Przykłady:
 
 Białka związane z licznymi chorobami (np. choroby Alzheimera, Parkinsona, Creutzfeldta-Jakoba) tworzące szkodliwe agregaty.
 
-<IMG class="disxplayed" src="static_figures/amyloid_aggregates.jpg" style="width:404px;height:300px;">
+<IMG class="displayed" src="static_figures/amyloid_aggregates.jpg" style="width:600px;height:300px;">
 
 Agregaty amyloid (czerwony) wokół neuronów (zielony). Strittmatter Laboratory, Yale University
 
@@ -206,7 +206,7 @@ shinyApp(
         geom_line(linetype="dotted", size=1.5) + 
         geom_point(size=7, shape=16) +
         geom_text(size = 6, vjust = -1.5) +
-        #coord_cartesian(ylim = c(0, 2e7)) +
+        coord_cartesian(ylim = c(1, 4.5e7)) +
         scale_x_continuous("n", breaks = 0L:5) +
         scale_y_continuous("Całkowita liczba n-gramów (skala logarytmiczna)",
                            trans = "log10") +
@@ -322,7 +322,7 @@ ngram_freq_plot <- table(ngram_freq[["association"]], ngram_freq[["amyloid"]]) %
   melt %>% 
   rename(association = Var1, pred = Var2) %>% 
   mutate(association = factor(association, labels = c("Amyloidogenny", "Nieamyloidogenny", "Niesprawdzony")),
-         pred = factor(pred, labels = rev(c("Predykcja: amyloidogenny", "Predykcja: nieamyloidogenny"))))
+         pred = factor(pred, labels = rev(c("Amyloidogenny", "Nieamyloidogenny"))))
 my_dodge <- position_dodge(1)
 
 ggplot(ngram_freq_plot, aes(fill = pred, y = value, x = association, label = value)) +
