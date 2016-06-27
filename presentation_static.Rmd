@@ -1,0 +1,587 @@
+---
+title: "Przewidywanie właściwości sekwencji biologicznych w oparciu o analizę n-gramów"
+author: "Michał Burdukiewicz"
+date: "28-06-2016"
+output:
+  ioslides_presentation:
+    css: shiny_paper.css
+    fig_height: 5.5
+    fig_width: 7.5
+bibliography: amyloids.bib
+widescreen: yes
+---
+
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
+library(DT)
+library(knitr)
+library(ggplot2)
+library(grid)
+library(gridExtra)
+library(dplyr)
+library(biogram)
+library(reshape2)
+library(plotly)
+library(latex2exp)
+
+options(DT.options = list(iDisplayLength = 6, searching = TRUE))
+
+size_mod <- -1
+
+enc2df <- function(x)
+  data.frame(Nazwa = names(x), Elementy = toupper(sapply(x, paste0, collapse = ", ")))
+
+my_theme <- theme(
+  axis.text = element_text(size=13 + size_mod),
+  axis.title.x = element_text(size=14 + size_mod, vjust = -1),
+  axis.title.y = element_text(size=14 + size_mod, vjust = 1),
+  
+  legend.background = element_rect(fill = "NA"),
+  legend.key = element_rect(fill = "NA", color = "NA", size = 0.5),
+  legend.position = "right",
+  #uncomment for publications
+  legend.key.size = unit(0.1, "inches"),
+  #legend.margin = unit(-0.25, "lines"),
+  legend.text = element_text(size=13 + size_mod), 
+  legend.title = element_text(size=15 + size_mod),
+  
+  panel.grid.major = element_line(color="grey", linetype = "dashed", size = 0.5),
+  panel.grid.major = element_line(color="lightgrey", 
+                                  linetype = "dashed", size = 0.5),
+  panel.background = element_rect(fill = "transparent", color = "black"),
+  
+  plot.background=element_rect(fill = "transparent",
+                               color = "transparent"),
+  #uncomment for publications
+  plot.margin = unit(rep(0.2, 4), "inches"),
+  plot.title = element_text(size=20 + size_mod),
+  
+  strip.background = element_rect(fill = "NA", color = "NA"),
+  strip.text = element_text(size=13 + size_mod, face = "bold")
+)
+```
+
+## Bioinformatyczne przewidywanie funkcji białek
+
+Prace eksperymentalne zazwyczaj poprzedza się analizami komputerowymi, które pozwalają optymalniej zaprojektować dalsze badania.
+
+Przykłady:   
+
+* przewidywanie lokalizacji subkomórkowej białek (sygnałów kierujących),  
+* predykcja struktury drugorzędowej i trzeciorzędowej białek oraz kwasów nukleinowych,
+* wykrywanie miejsc wiązania czynników transkrypcyjnych,
+* poszukiwanie sekwencji kodujących białko.
+
+<!-- Taniej, szybciej -->
+
+## Białka amyloidowe
+
+Białka związane z licznymi chorobami (np. choroby Alzheimera, Parkinsona, Creutzfeldta-Jakoba) tworzące szkodliwe agregaty.
+
+<IMG class="displayed" src="static_figures/amyloid_aggregates.jpg" style="width:600px;height:300px;">
+
+Agregaty amyloid (czerwony) wokół neuronów (zielony). Strittmatter Laboratory, Yale University
+
+## Hot spots
+
+Proces ten jest inicjowany w obrębie tzw. hot spots, krótkich (6-15 aminokwasów), ale zróżnicowanych podsekwencji, które występują we wszystkich białkach amyloidowych i formują specyficzne struktury $\beta$ typu "zamka błyskawicznego" (zipper-like).
+
+<IMG class="displayed" src="static_figures/zipper_structure.jpg" style="width:550px;height:220px;">
+
+@sawaya_atomic_2007
+
+## Cel pracy doktorskiej
+
+Opracowanie interpretowalnych metod przewidywania właściwości sekwencji biologicznych.
+
+Wybrany problem: przewidywanie białek amyloidogennych.
+
+Motywacja:  
+
+* rola białek amyloidogennych w chorobach neurodegeneratywnych,  
+* niska precyzja innych programów przewidujących białka amyloidowe,  
+* trudno interpretowalne reguły decyzyjne wykorzystywane przez inne programy.  
+
+## Programy przewidujące lokalizację hot spots
+
+Zróżnicowanie budowy hot spots uniemożliwa opisanie ich konkretnych wzorcem.  
+
+Istnieją już programy przewidujące miejsca inicjacji agregacji takie jak: APPNN [@familia_prediction_2015], PASTA2 [@walsh_pasta_2014] i FoldAmyloid [@garbuzynskiy_foldamyloid:_2010], ale ich precyzja nie jest wysoka. Dodatkowo, wykorzystywane przez nie reguły decyzyjne są trudno interpretowalne.
+
+<!-- ## Peptydy sygnałowe -->
+
+<!-- Peptydy sygnałowe to krótkie (15-30 aminokwasów) N-końcowe sekwencje kierujące białko do sekrecji. -->
+
+<!-- Powszechny model klasycznych peptydów sygnałowych zakłada, że rozpoczynają się one naładowanym dodatnio n-regionem, po którym występuje hydrofobowy h-region i c-region zakończony miejscem cięcia rozpoznawanym przez peptydazę sygnałową.  -->
+
+<!-- ## Peptydy sygnałowe -->
+
+<!-- <img src="static_figures/SP.png" align="middle"> -->
+
+<!-- ## Peptydy sygnałowe -->
+
+<!-- Analizy dużej liczby sekwencji reprezentujących szerokie spektrum zróżnicowanych taksonomicznie gatunków wskazują na dużą zmienność peptydów sygnałowych. -->
+
+## n-gramy
+
+Przykładowe sekwencje. S - sekwencja, P - pozycja. 
+
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
+library(seqinr)
+aa_v <- seqinr::a()[-1]
+set.seed(1)
+sample_seq <- matrix(sample(aa_v, 18, replace = TRUE), nrow = 3)
+colnames(sample_seq) <- paste0("P", 1L:ncol(sample_seq))
+rownames(sample_seq) <- paste0("S", 1L:nrow(sample_seq))
+sample_seq_dat <- data.frame(sample_seq)
+
+datatable(sample_seq_dat, 
+          rownames = TRUE, filter = "none", 
+          options = list(dom = 't'))
+```
+
+### 1-gramy:
+
+```{r, echo = FALSE,results='asis'}
+decode_ngrams(seq2ngrams(sample_seq, 1, aa_v, d = 0)[1L:3]) %>% 
+  gsub("_", "-", x = .) %>% 
+  paste0(collapse = ", ") %>% 
+  paste0("### ", .) %>% 
+  cat
+```
+
+
+## n-gramy
+
+Przykładowe sekwencje. S - sekwencja, P - pozycja. 
+
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
+library(seqinr)
+aa_v <- seqinr::a()[-1]
+set.seed(1)
+sample_seq <- matrix(sample(aa_v, 18, replace = TRUE), nrow = 3)
+colnames(sample_seq) <- paste0("P", 1L:ncol(sample_seq))
+rownames(sample_seq) <- paste0("S", 1L:nrow(sample_seq))
+sample_seq_dat <- data.frame(sample_seq)
+
+datatable(sample_seq_dat, 
+          rownames = TRUE, filter = "none", 
+          options = list(dom = 't'))
+```
+
+### 2-gramy:
+
+```{r, echo = FALSE,results='asis'}
+decode_ngrams(seq2ngrams(sample_seq, 2, aa_v, d = 0)[1L:3]) %>% 
+  gsub("_", "-", x = .) %>% 
+  paste0(collapse = ", ") %>% 
+  paste0("### ", .) %>% 
+  cat
+```
+
+## n-gramy
+
+Przykładowe sekwencje. S - sekwencja, P - pozycja. 
+
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
+library(seqinr)
+aa_v <- seqinr::a()[-1]
+set.seed(1)
+sample_seq <- matrix(sample(aa_v, 18, replace = TRUE), nrow = 3)
+colnames(sample_seq) <- paste0("P", 1L:ncol(sample_seq))
+rownames(sample_seq) <- paste0("S", 1L:nrow(sample_seq))
+sample_seq_dat <- data.frame(sample_seq)
+
+datatable(sample_seq_dat, 
+          rownames = TRUE, filter = "none", 
+          options = list(dom = 't'))
+```
+
+### 3-gramy:
+
+```{r, echo = FALSE,results='asis'}
+decode_ngrams(seq2ngrams(sample_seq, 3, aa_v, d = 0)[1L:3]) %>% 
+  gsub("_", "-", x = .) %>% 
+  paste0(collapse = ", ") %>% 
+  paste0("### ", .) %>% 
+  cat
+```
+
+
+## n-gramy
+
+Przykładowe sekwencje. S - sekwencja, P - pozycja. 
+
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
+library(seqinr)
+aa_v <- seqinr::a()[-1]
+set.seed(1)
+sample_seq <- matrix(sample(aa_v, 18, replace = TRUE), nrow = 3)
+colnames(sample_seq) <- paste0("P", 1L:ncol(sample_seq))
+rownames(sample_seq) <- paste0("S", 1L:nrow(sample_seq))
+sample_seq_dat <- data.frame(sample_seq)
+
+datatable(sample_seq_dat, 
+          rownames = TRUE, filter = "none", 
+          options = list(dom = 't'))
+```
+
+### 2-gramy (odstęp między elementami 1):
+
+```{r, echo = FALSE,results='asis'}
+decode_ngrams(seq2ngrams(sample_seq, 2, aa_v, d = 1)[1L:3]) %>% 
+  gsub("_", "-", x = .) %>% 
+  paste0(collapse = ", ") %>% 
+  paste0("### ", .) %>% 
+  cat
+```
+
+## n-gramy
+
+Przykładowe sekwencje. S - sekwencja, P - pozycja. 
+
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
+library(seqinr)
+aa_v <- seqinr::a()[-1]
+set.seed(1)
+sample_seq <- matrix(sample(aa_v, 18, replace = TRUE), nrow = 3)
+colnames(sample_seq) <- paste0("P", 1L:ncol(sample_seq))
+rownames(sample_seq) <- paste0("S", 1L:nrow(sample_seq))
+sample_seq_dat <- data.frame(sample_seq)
+
+datatable(sample_seq_dat, 
+          rownames = TRUE, filter = "none", 
+          options = list(dom = 't'))
+```
+
+### 3-gramy (odstęp między elementami 1):
+
+```{r, echo = FALSE,results='asis'}
+decode_ngrams(seq2ngrams(sample_seq, 3, aa_v, d = 1)[1L:3]) %>% 
+  gsub("_", "-", x = .) %>% 
+  paste0(collapse = ", ") %>% 
+  paste0("### ", .) %>% 
+  cat
+```
+
+
+## n-gramy
+
+Przykładowe sekwencje. S - sekwencja, P - pozycja. 
+
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
+library(seqinr)
+aa_v <- seqinr::a()[-1]
+set.seed(1)
+sample_seq <- matrix(sample(aa_v, 18, replace = TRUE), nrow = 3)
+colnames(sample_seq) <- paste0("P", 1L:ncol(sample_seq))
+rownames(sample_seq) <- paste0("S", 1L:nrow(sample_seq))
+sample_seq_dat <- data.frame(sample_seq)
+
+datatable(sample_seq_dat, 
+          rownames = TRUE, filter = "none", 
+          options = list(dom = 't'))
+```
+
+### 3-gramy (odstęp między elementami 0 i 1):
+
+```{r, echo = FALSE,results='asis'}
+decode_ngrams(seq2ngrams(sample_seq, 3, aa_v, d = c(0, 1))[1L:3]) %>% 
+  gsub("_", "-", x = .) %>% 
+  paste0(collapse = ", ") %>% 
+  paste0("### ", .) %>% 
+  cat
+```
+
+## Redukcja wymiarów - zmniejszenie alfabetu
+
+n-gramy tworzą bardzo duże i trudne do analizy zbiory danych.  
+
+W przypadku alfabetu aminokwasowego zmniejszenie wielkości alfabetu skutkuje mniejszą liczbą potencjalnych n-gramów.
+
+$n_{\text{max}} = L \times m^n$
+
+$n_{\text{max}}$: liczba n-gramów.  
+$L$: długość sekwencji.  
+$m$: wielkość alfabetu.  
+$n$: długość n-gramu.
+
+## Problemy analizy n-gramowej
+
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE,fig.width=11}
+L <- 5
+m <- 20
+m2 <- 6
+n <- 1:5
+n_max <- L*m^n
+n_max2 <- L*m2^n
+dat <- data.frame(n = c(n, n), n_max = c(n_max, n_max2), m = c(rep(m, 5), rep(m2, 5)))
+dat[["m"]] <- factor(dat[["m"]])
+
+ggplot(dat, aes(x = n, y = n_max, color = m, label = formatC(n_max, digits = 4))) +
+  geom_text(x = 1, y = 6, color = "black", label = as.character(TeX("$n_{max} = L \\times m^n$")), parse = TRUE, size = 6) +
+  geom_line(linetype="dotted", size=1.5) +
+  geom_point(size=7, shape=16) +
+  geom_text(size = 6, vjust = -1.5, hjust = -0.05) +
+  coord_cartesian(ylim = c(1, 5e7), xlim = c(0.5, 5.5)) +
+  scale_x_continuous("n", breaks = 0L:5) +
+  scale_y_continuous(TeX("$n_{max}$ (skala logarytmiczna)"), trans = "log10") +
+  scale_color_discrete("m") +
+  my_theme
+```
+
+
+## Redukcja wymiarów - wybór n-gramów
+
+n-gramy filtrowane są zwykle przy wykorzystaniu testów permutacyjnych. 
+
+Podczas testu permutacyjnego oznaczenia klas są losowo mieszane, a uzyskaną wartość danej statystyki (w tym przypad ku information gain) porównuje się z wartością tej statystyki dla danych oryginalnych.  
+
+$$      
+\textrm{p-value} = \frac{N_{T_P > T_R}}{N}
+$$
+
+$N_{T_P > T_R}$: wszystkie przypadki, kiedy $T_P$ (permutowana statystyka testowa) przyjmuje wartości bardziej ekstremalne niż $T_R$ (statystyka testowa dla danych oryginalnych).  
+
+$N$: liczba wszystkich permutacji.  
+
+## QuiPT
+
+Testy permutacyjne są bardzo wymagające obliczeniowo, dlatego też opracowałem **Qui**ck *P*ermutation *T*est, który pozwala wielokrotnie szybciej filtrować n-gramy.
+
+QuiPT pozwala również na bardzo precyzyjne określanie p-value.  
+
+## Amyloidy - redukcja alfabetu
+
+Stworzono 524 284 zredukowane alfabety o różnych długościach (od trzech do sześciu grup) wykorzystując metodę grupowań Warda na wybranych cechach fizykochemicznych z basy właściwości aminokwasów AAIndex [@kawashima_aaindex:_2008].
+
+## Najlepsze kodowanie
+
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
+datatable(enc2df(list(`1` = "g", 
+                      `2` = c("k", "p", "r"), 
+                      `3` = c("i", "l", "v"), 
+                      `4` = c("f", "w", "y"), 
+                      `5` = c("a", "c", "h", "m"), 
+                      `6` = c("d", "e", "n", "q", "s", "t"))), 
+          rownames = FALSE, filter = "none", 
+          options = list(dom = 't')) 
+```
+
+Przykładowo: GPRS -- 1226.
+
+## Najlepsze kodowanie
+
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
+datatable(enc2df(list(`1` = "g", 
+                      `2` = c("k", "p", "r"), 
+                      `3` = c("i", "l", "v"), 
+                      `4` = c("f", "w", "y"), 
+                      `5` = c("a", "c", "h", "m"), 
+                      `6` = c("d", "e", "n", "q", "s", "t"))), 
+          rownames = FALSE, filter = "none", 
+          options = list(dom = 't')) %>% 
+  formatStyle(
+    'Elementy',
+    backgroundColor = styleEqual("K, P, R", 'aquamarine')
+  )
+```
+
+Aminowaksy K, P, R nie powinny występować w obrębie hot spots.
+
+## Najlepsze kodowanie
+
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
+datatable(enc2df(list(`1` = "g", 
+                      `2` = c("k", "p", "r"), 
+                      `3` = c("i", "l", "v"), 
+                      `4` = c("f", "w", "y"), 
+                      `5` = c("a", "c", "h", "m"), 
+                      `6` = c("d", "e", "n", "q", "s", "t"))), 
+          rownames = FALSE, filter = "none", 
+          options = list(dom = 't')) %>% 
+  formatStyle(
+    'Elementy',
+    backgroundColor = styleEqual(c("I, L, V", "F, W, Y"), c('aquamarine', 'aquamarine'))
+  )
+```
+
+Aminowaksy hydrofobowe są typowe dla hot spots.
+
+## Informatywne n-gramy
+
+Podczas analizy zidentyfikowano 65 najbardziej informatywnych n-gramów. Część z nich została potwierdzona eksperymentalnie [@paz_sequence_2004].
+
+## Informatywne n-gramy
+
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE,fig.width=11}
+ngram_freq <- read.csv("ngram_freq.csv") %>% 
+  mutate(amyloid = diff_freq > 0) %>%
+  select(decoded_name, amyloid, association) %>% 
+  filter(!duplicated(.))
+
+ngram_freq_plot <- table(ngram_freq[["association"]], ngram_freq[["amyloid"]]) %>% 
+  melt %>% 
+  rename(association = Var1, pred = Var2) %>% 
+  mutate(association = factor(association, labels = c("Amyloidogenny", "Nieamyloidogenny", "Niesprawdzony")),
+         pred = factor(pred, labels = rev(c("Amyloidogenny\n", "Nieamyloidogenny\n"))))
+my_dodge <- position_dodge(1)
+
+ggplot(ngram_freq_plot, aes(fill = pred, y = value, x = association, label = value)) +
+  geom_bar(stat = "identity", position = my_dodge) +
+  geom_text(size = 6, position = my_dodge, vjust = -0.5) +
+  scale_x_discrete("Dane eksperymentalne\n") +
+  scale_y_continuous("Liczba n-gramów") +
+  coord_cartesian(ylim = c(0, 30)) +
+  scale_fill_manual("Predykcja AmyloGram", values = c("darkmagenta", "cadetblue")) +
+  #guides(fill = FALSE) +
+  #facet_wrap(~ pred) +
+  my_theme 
+
+```
+
+## Najlepsze kodowanie
+
+Najlepsze kodowanie wykorzystano do wyuczenia programu AmyloGram, predyktora amyloidogenności opartego na n-gramach.
+
+## AmyloGram - benchmark
+
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
+benchmark_dat <- structure(list(classifier = structure(c(4L, 3L, 1L, 2L), 
+                                                       .Label = c("appnn", "class14592_10", "FoldAmyloid", "PASTA2"),
+                                                       class = "factor"), 
+                                AUC = c(0.854996271439225, 0.735098185433756, 
+                                        0.834302759134974,  0.897153865274671), 
+                                MCC = c(0.429123592940917, 0.45255292317694, 
+                                        0.582260193831285, 0.630749412736651), 
+                                pos = c(NA, NA, NA, 10L), 
+                                nice_name = structure(c(4L, 3L, 2L, 1L), 
+                                                      .Label = c("14592", "appnn", "FoldAmyloid", "PASTA2"), 
+                                                      class = "factor")),
+                           .Names = c("classifier", "AUC", "MCC", "pos", "nice_name"), 
+                           row.names = c(1L, 2L, 3L, 5L), class = "data.frame")
+
+benchmark_dat %>% 
+  mutate(classifier = as.character(classifier)) %>% 
+  mutate(classifier = ifelse(classifier == "class14592_10", "AmyloGram", classifier)) %>% 
+  rename(Software = classifier) %>% 
+  select(1L:3) %>% 
+  datatable(rownames = FALSE, filter = "none", 
+            options = list(dom = 't')) %>% 
+  formatRound(2L:3, 4) %>% 
+  formatStyle(
+    'AUC',
+    backgroundColor = styleInterval(c(0.897, 1), c('white', 'aquamarine', 'white'))
+  ) %>%
+  formatStyle(
+    'MCC',
+    backgroundColor = styleInterval(c(0.63, 1), c('white', 'aquamarine', 'white'))
+  )
+
+```
+
+Porównanie AmyloGramu z APPNN [@familia_prediction_2015], PASTA2 [@walsh_pasta_2014] i FoldAmyloid [@garbuzynskiy_foldamyloid:_2010].
+
+## Predykcja peptydów sygnałowych
+
+Dzięki analize n-gramów jest również możliwe precyzyjne przewidywanie peptydów sygnałowych, n-końcowych sekwencji kierujących białka do lokalizacji pozakomórkowych.  
+
+<IMG class="displayed" src="static_figures/SP.png" style="width:550px;height:920px;">
+
+## Predykcja peptydów sygnałowych
+
+Użycie zredukowanego alfabetu aminokwasowego pozwala na przewidywanie peptydów sygnałowych u organizmów rzadziej spotykanych w bazach danych.
+
+Mój program, signalHsmm, jest w stanie wykrywać
+
+## Predykcja peptydów sygnałowych
+
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE,fig.width=11}
+freq_nondeg <- read.csv2("freq_nondeg.csv")[, -1]
+freq_deg <- read.csv2("freq_deg.csv")[, -1]
+
+do_pca <- function(x) 
+  x %>% 
+  select(-type, -taxon) %>% 
+  prcomp(center = TRUE, scale = TRUE) %>% 
+  getElement("x") %>% 
+  data.frame() %>% 
+  select(1, 2) %>% 
+  cbind(select(x, type, taxon), .) %>% 
+  mutate(type_nice = factor(type, labels = c("dojrzałe białko\n", "peptyd sygnałowy\n")),
+         taxon_nice = factor(taxon, labels = c("inne", "Plasmodium"))) %>% 
+  mutate(both = paste0(type_nice, "(", taxon_nice, ")\n"))
+
+dat_deg <- do_pca(freq_deg) 
+dat_nondeg <- do_pca(freq_nondeg)
+
+plot_pca <- function(x)
+  ggplot(x, aes(x = PC1, y = PC2, color = both, shape = both, fill = both, linetype = both)) + 
+  geom_density_2d(color = "black", contour = TRUE) +
+  #geom_point() +
+  stat_density2d(aes(fill=both,alpha=..level..), color = "black", 
+                 contour = TRUE, geom="polygon") +
+  scale_linetype_discrete("") +
+  scale_fill_discrete("") +
+  scale_alpha_continuous(range = c(0.35, 1)) +
+  guides(alpha = FALSE) +
+  my_theme
+
+plot_pca(dat_nondeg) + ggtitle("Pełny alfabet")
+```
+
+## Predykcja peptydów sygnałowych
+
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE,fig.width=10}
+plot_pca(dat_deg) + ggtitle("Zredukowany alphabet signalHsmm")
+```
+
+## signalHsmm - benchmark
+
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE}
+read.csv("S1_plasmodium_benchmark.csv") %>% 
+  select(Software, AUC, MCC) %>% 
+  slice(c(1L:7, 9)) %>% 
+  datatable(rownames = FALSE, filter = "none", 
+            options = list(dom = 't', pageLength = 10)) %>% 
+  formatRound(2L:3, 4) %>%
+  formatStyle(
+    'AUC',
+    backgroundColor = styleInterval(c(0.93, 1), c('white', 'aquamarine', 'white'))
+  ) %>%
+  formatStyle(
+    'MCC',
+    backgroundColor = styleInterval(c(0.76, 1), c('white', 'aquamarine', 'white'))
+  )
+```
+
+
+## Podsumowanie
+
+Interpretowalne analizy metodami n-gramowymi pozwalają na precyzyjniejsze przewidywanie właściwości sekwencji aminokwasowych.
+
+[AmyloGram](http://www.smorfland.uni.wroc.pl/amylogram)  
+[signalHsmm](http://www.smorfland.uni.wroc.pl/signalhsmm)
+
+## Perspektywy dalszych badań
+
+* Opracowanie predykcji bakteryjnych peptydów sygnałowych.  
+* Analiza n-gramów pochodzących z genomów mitochondrialnych różnych grup taksonomicznych.
+
+## AUC poszczególnych alfabetów
+
+```{r, echo = FALSE, message = FALSE, results='asis',warning=FALSE,fig.width=10}
+
+amyloids_plot <- read.csv2("AUC_boxplot6.csv", row.names = NULL)
+ggplot(amyloids_plot, aes(x = len_range, y = AUC_mean)) +
+  geom_boxplot(outlier.color = "grey", outlier.shape = 1) +
+  geom_point(data = filter(amyloids_plot, et != "Encoding"), 
+             aes(x = len_range, y = AUC_mean, color = et, shape = et), size = 4) +
+  scale_x_discrete("") +
+  scale_y_continuous("Mean AUC") +
+  scale_shape_manual("", values = c(16, NA, 15, 15), drop = FALSE) +
+  scale_color_manual("", values = c("red", "grey", "blue", "green"), drop = FALSE) +
+  my_theme + 
+  coord_flip()
+```
+
+## References
