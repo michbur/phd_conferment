@@ -6850,7 +6850,7 @@ slides > slide {
   background-position: 93.1% 4% !important;
 }
 
-IMG.displayed {
+IMG {
     display: block;
     margin-left: auto;
     margin-right: auto }
